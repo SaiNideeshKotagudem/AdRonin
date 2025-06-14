@@ -7,7 +7,8 @@ import {
   Settings, 
   Code,
   LogOut,
-  Megaphone
+  Megaphone,
+  CreditCard
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/auth';
 
@@ -21,6 +22,7 @@ const navigation = [
   { id: 'campaigns', name: 'Campaigns', icon: Megaphone },
   { id: 'content', name: 'Content Studio', icon: PenTool },
   { id: 'analytics', name: 'Analytics', icon: BarChart3 },
+  { id: 'billing', name: 'Billing', icon: CreditCard },
   { id: 'developer', name: 'Developer', icon: Code },
 ];
 

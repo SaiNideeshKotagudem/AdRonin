@@ -7,6 +7,7 @@ import { DashboardOverview } from './components/dashboard/DashboardOverview';
 import { CampaignList } from './components/campaigns/CampaignList';
 import { ContentStudio } from './components/content/ContentStudio';
 import { Analytics } from './components/analytics/Analytics';
+import { BillingDashboard } from './components/billing/BillingDashboard';
 import { DeveloperMode } from './components/developer/DeveloperMode';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 
@@ -45,6 +46,8 @@ function App() {
         return <ContentStudio />;
       case 'analytics':
         return <Analytics />;
+      case 'billing':
+        return <BillingDashboard />;
       case 'developer':
         return <DeveloperMode />;
       default:
