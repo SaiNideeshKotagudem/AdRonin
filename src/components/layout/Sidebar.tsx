@@ -48,6 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
       </div>
 
       {/* Navigation */}
+      {/*...*/}
       <nav className="flex-1 px-4 py-6 space-y-2">
         {navigation.map((item) => (
           <button
