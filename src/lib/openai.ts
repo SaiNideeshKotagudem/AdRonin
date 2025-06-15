@@ -38,7 +38,7 @@ export const generateCampaignPlan = async (
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-3",
       messages: [
         {
           role: "system",
@@ -79,7 +79,7 @@ export const generateAdCopy = async (
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-3",
       messages: [
         {
           role: "system",
@@ -113,7 +113,7 @@ export const generateInsights = async (performanceData: any): Promise<string> =>
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-3",
       messages: [
         {
           role: "system",
