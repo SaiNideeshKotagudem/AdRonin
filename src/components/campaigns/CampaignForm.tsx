@@ -4,7 +4,7 @@ import { Button } from '../ui/Button';
 import { Card, CardHeader, CardTitle } from '../ui/Card';
 import { Modal } from '../ui/Modal';
 import { useCampaignStore } from '../../stores/campaign';
-import { generateCampaignPlan } from '../../lib/openai';
+import { generateCampaignPlan } from '../../lib/gemini';
 import { CampaignFormData } from '../../types';
 import toast from 'react-hot-toast';
 
@@ -71,7 +71,7 @@ export const CampaignForm: React.FC<CampaignFormProps> = ({ isOpen, onClose }) =
 
     setLoading(true);
     try {
-      // Generate AI campaign strategy
+      // Generate AI campaign strategy using Gemini
       const strategy = await generateCampaignPlan(
         data.business_goal,
         data.target_audience,

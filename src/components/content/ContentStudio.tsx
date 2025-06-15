@@ -12,7 +12,7 @@ import {
   Download,
   Sparkles
 } from 'lucide-react';
-import { generateAdCopy } from '../../lib/openai';
+import { generateAdCopy } from '../../lib/gemini';
 import toast from 'react-hot-toast';
 
 interface GeneratedContent {
@@ -79,7 +79,7 @@ export const ContentStudio: React.FC = () => {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Content Studio</h1>
         <p className="text-gray-600 mt-1">
-          Generate AI-powered marketing content for your campaigns
+          Generate AI-powered marketing content using Google Gemini (free)
         </p>
       </div>
 
@@ -177,7 +177,7 @@ export const ContentStudio: React.FC = () => {
 
             {loading && (
               <div className="flex items-center justify-center py-8">
-                <LoadingSpinner text="Generating content..." />
+                <LoadingSpinner text="Generating content with Gemini AI..." />
               </div>
             )}
 
@@ -190,7 +190,7 @@ export const ContentStudio: React.FC = () => {
                   No content generated yet
                 </h3>
                 <p className="text-gray-600">
-                  Fill out the form and click generate to create AI-powered content
+                  Fill out the form and click generate to create AI-powered content using Google Gemini
                 </p>
               </div>
             )}
@@ -204,7 +204,7 @@ export const ContentStudio: React.FC = () => {
                         <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-md font-medium">
                           {item.platform}
                         </span>
-                        <span className="text-sm text-gray-500">
+                        <span className="text-xs text-gray-500">
                           {new Date(item.timestamp).toLocaleString()}
                         </span>
                       </div>

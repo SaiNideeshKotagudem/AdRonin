@@ -8,7 +8,8 @@ import {
   Download,
   MessageCircle,
   Calendar,
-  Filter
+  Filter,
+  AlertCircle
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -25,7 +26,7 @@ import {
   Cell
 } from 'recharts';
 import { useCampaignStore } from '../../stores/campaign';
-import { generateInsights } from '../../lib/openai';
+import { generateInsights } from '../../lib/gemini';
 import toast from 'react-hot-toast';
 
 const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444'];
@@ -52,6 +53,7 @@ export const Analytics: React.FC = () => {
     try {
       const performanceData = {
         total_campaigns: campaigns.length,
+        active_campaigns: campaigns.filter(c => c.status === 'active').length,
         total_impressions: performance.reduce((sum, p) => sum + p.impressions, 0),
         total_clicks: performance.reduce((sum, p) => sum + p.clicks, 0),
         total_conversions: performance.reduce((sum, p) => sum + p.conversions, 0),
@@ -60,30 +62,48 @@ export const Analytics: React.FC = () => {
           acc[p.channel] = (acc[p.channel] || 0) + p.spend;
           return acc;
         }, {} as Record<string, number>),
+        avg_ctr: performance.length > 0 ? 
+          performance.reduce((sum, p) => sum + (p.clicks / p.impressions), 0) / performance.length * 100 : 0,
+        avg_conversion_rate: performance.length > 0 ?
+          performance.reduce((sum, p) => sum + (p.conversions / p.clicks), 0) / performance.length * 100 : 0
       };
 
       const generatedInsights = await generateInsights(performanceData);
       setInsights(generatedInsights);
     } catch (error) {
       console.error('Error generating insights:', error);
-      setInsights('Unable to generate insights at this time. Please check your performance data and try again.');
+      setInsights('Unable to generate insights at this time. This could be due to insufficient data or API limitations.');
     }
     setLoadingInsights(false);
   };
 
-  // Prepare chart data
+  // Calculate real statistics from actual data
+  const realStats = {
+    totalSpend: performance.reduce((sum, p) => sum + p.spend, 0),
+    totalConversions: performance.reduce((sum, p) => sum + p.conversions, 0),
+    totalClicks: performance.reduce((sum, p) => sum + p.clicks, 0),
+    totalImpressions: performance.reduce((sum, p) => sum + p.impressions, 0),
+    avgCTR: performance.length > 0 ? 
+      performance.reduce((sum, p) => sum + (p.clicks / p.impressions), 0) / performance.length * 100 : 0,
+    avgConversionRate: performance.length > 0 ?
+      performance.reduce((sum, p) => sum + (p.conversions / p.clicks), 0) / performance.length * 100 : 0
+  };
+
+  // Prepare chart data from real performance data
   const channelPerformance = performance.reduce((acc, p) => {
     const existing = acc.find(item => item.channel === p.channel);
     if (existing) {
       existing.spend += p.spend;
       existing.conversions += p.conversions;
       existing.clicks += p.clicks;
+      existing.impressions += p.impressions;
     } else {
       acc.push({
         channel: p.channel,
         spend: p.spend,
         conversions: p.conversions,
         clicks: p.clicks,
+        impressions: p.impressions,
         ctr: (p.clicks / p.impressions) * 100,
       });
     }
@@ -95,11 +115,15 @@ export const Analytics: React.FC = () => {
     if (existing) {
       existing.spend += p.spend;
       existing.conversions += p.conversions;
+      existing.clicks += p.clicks;
+      existing.impressions += p.impressions;
     } else {
       acc.push({
         date: new Date(p.date).toLocaleDateString(),
         spend: p.spend,
         conversions: p.conversions,
+        clicks: p.clicks,
+        impressions: p.impressions,
       });
     }
     return acc;
@@ -112,6 +136,21 @@ export const Analytics: React.FC = () => {
   }));
 
   const exportReport = () => {
+    const reportData = {
+      summary: realStats,
+      channelPerformance,
+      dailyPerformance,
+      generatedAt: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `campaign-report-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
     toast.success('Report exported successfully!');
   };
 
@@ -129,7 +168,7 @@ export const Analytics: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
           <p className="text-gray-600 mt-1">
-            Analyze your campaign performance and get AI insights
+            Real campaign performance data and AI insights powered by Google Gemini
           </p>
         </div>
         <div className="flex space-x-3">
@@ -149,16 +188,71 @@ export const Analytics: React.FC = () => {
         </div>
       </div>
 
+      {/* Real Statistics Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Spend</p>
+              <p className="text-2xl font-bold text-gray-900">${realStats.totalSpend.toFixed(2)}</p>
+              <p className="text-sm text-gray-500">Actual spend from campaigns</p>
+            </div>
+            <div className="w-12 h-12 bg-gradient-to-r from-blue-100 to-purple-100 rounded-lg flex items-center justify-center">
+              <BarChart3 className="w-6 h-6 text-blue-600" />
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Conversions</p>
+              <p className="text-2xl font-bold text-gray-900">{realStats.totalConversions}</p>
+              <p className="text-sm text-gray-500">Real conversions tracked</p>
+            </div>
+            <div className="w-12 h-12 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Average CTR</p>
+              <p className="text-2xl font-bold text-gray-900">{realStats.avgCTR.toFixed(2)}%</p>
+              <p className="text-sm text-gray-500">Click-through rate</p>
+            </div>
+            <div className="w-12 h-12 bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg flex items-center justify-center">
+              <BarChart3 className="w-6 h-6 text-purple-600" />
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Conversion Rate</p>
+              <p className="text-2xl font-bold text-gray-900">{realStats.avgConversionRate.toFixed(2)}%</p>
+              <p className="text-sm text-gray-500">Average conversion rate</p>
+            </div>
+            <div className="w-12 h-12 bg-gradient-to-r from-orange-100 to-red-100 rounded-lg flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-orange-600" />
+            </div>
+          </div>
+        </Card>
+      </div>
+
       {performance.length === 0 ? (
         <Card className="text-center py-12">
           <div className="w-16 h-16 bg-gradient-to-r from-blue-100 to-purple-100 rounded-xl mx-auto mb-4 flex items-center justify-center">
-            <BarChart3 className="w-8 h-8 text-blue-600" />
+            <AlertCircle className="w-8 h-8 text-blue-600" />
           </div>
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
             No performance data yet
           </h3>
           <p className="text-gray-600">
-            Activate your campaigns to start collecting performance data
+            Activate your campaigns to start collecting real performance data
           </p>
         </Card>
       ) : (
@@ -167,7 +261,7 @@ export const Analytics: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Channel Performance</CardTitle>
+                <CardTitle>Channel Performance (Real Data)</CardTitle>
               </CardHeader>
               <div className="h-80">
                 <ResponsiveContainer>
@@ -185,7 +279,7 @@ export const Analytics: React.FC = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Daily Trend</CardTitle>
+                <CardTitle>Daily Performance Trend</CardTitle>
               </CardHeader>
               <div className="h-80">
                 <ResponsiveContainer>
@@ -247,13 +341,13 @@ export const Analytics: React.FC = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <MessageCircle className="w-5 h-5 mr-2 text-purple-600" />
-                    AI Performance Insights
+                    AI Performance Insights (Powered by Gemini)
                   </CardTitle>
                 </CardHeader>
                 
                 {loadingInsights ? (
                   <div className="flex items-center justify-center py-8">
-                    <LoadingSpinner text="Generating insights..." />
+                    <LoadingSpinner text="Generating insights with Gemini AI..." />
                   </div>
                 ) : (
                   <div className="space-y-4">
