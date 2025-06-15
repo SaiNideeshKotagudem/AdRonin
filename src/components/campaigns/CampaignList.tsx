@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useCampaignStore } from '../../stores/campaign';
 import { Campaign } from '../../types/database';
-import { CampaignExecutor } from '../../lib/campaign-executor';
+import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
 export const CampaignList: React.FC = () => {
@@ -33,39 +33,69 @@ export const CampaignList: React.FC = () => {
     fetchCampaigns();
   }, []);
 
+  const executeCampaignAction = async (campaignId: string, action: 'execute' | 'pause' | 'syncPerformance') => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
+
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/execute-campaign`;
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action,
+          campaignId
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Campaign action failed');
+      }
+
+      const result = await response.json();
+      return result.result;
+    } catch (error) {
+      console.error('Campaign action failed:', error);
+      throw error;
+    }
+  };
+
   const handleStatusToggle = async (campaign: Campaign) => {
     if (campaign.status === 'active') {
       // Pause campaign
-      await updateCampaign(campaign.id, { status: 'paused' });
-      toast.success('Campaign paused');
+      setExecutingCampaigns(prev => new Set(prev).add(campaign.id));
+      
+      try {
+        await executeCampaignAction(campaign.id, 'pause');
+        await updateCampaign(campaign.id, { status: 'paused' });
+        toast.success('Campaign paused');
+      } catch (error) {
+        console.error('Campaign pause failed:', error);
+        toast.error('Failed to pause campaign');
+      } finally {
+        setExecutingCampaigns(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(campaign.id);
+          return newSet;
+        });
+      }
     } else {
       // Activate campaign - this will trigger real execution
       setExecutingCampaigns(prev => new Set(prev).add(campaign.id));
       
       try {
-        // Initialize campaign executor with mock config for demo
-        const executor = new CampaignExecutor({
-          // In production, these would come from user's connected accounts
-          googleAds: {
-            clientId: 'demo',
-            clientSecret: 'demo',
-            refreshToken: 'demo',
-            customerId: 'demo'
-          },
-          metaAds: {
-            accessToken: 'demo',
-            adAccountId: 'demo'
-          }
-        });
-
-        // Execute campaign on real platforms
-        const results = await executor.executeCampaign(campaign.id);
+        // Execute campaign on real platforms via Edge Function
+        const results = await executeCampaignAction(campaign.id, 'execute');
         
         // Update campaign status
         await updateCampaign(campaign.id, { status: 'active' });
-        
-        // Start performance data sync
-        await executor.syncPerformanceData(campaign.id);
         
         toast.success(`Campaign activated on ${results.length} platforms`);
       } catch (error) {
@@ -153,7 +183,7 @@ export const CampaignList: React.FC = () => {
                             ? 'bg-yellow-100 text-yellow-800'
                             : 'bg-gray-100 text-gray-800'
                         }`}>
-                          {isExecuting ? 'Activating...' : campaign.status}
+                          {isExecuting ? 'Processing...' : campaign.status}
                         </span>
                         {campaign.strategy?.budget_allocation && (
                           <span className="text-xs text-gray-500">
